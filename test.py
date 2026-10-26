@@ -1,6 +1,9 @@
-from app.core.config import get_settings
+from itertools import count
+from app.services.ingestion import load_file, chunk_documents
+from pathlib import Path
 
-settings = get_settings()
+docs = load_file('data\hr-data\HR-Emp Policies.pdf')
+chunked_docs = chunk_documents(docs)
+print(chunked_docs)
 
-print(f'App_name: {settings.app_name}')
-print(f'API_KEY: {settings.groq_api_key}')
+print(len(chunked_docs))
