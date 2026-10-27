@@ -1,6 +1,6 @@
-# Agentic HR & Employee Support Assistant
+# HR Policy Copilot
 
-An agentic HR chatbot powered by LangGraph, FastAPI, Groq (LLM), Pinecone (Vector DB), HuggingFace embeddings, and Tavily (web search fallback).
+An enterprise agentic HR copilot powered by LangGraph, FastAPI, Groq (LLM), Pinecone (Vector DB), HuggingFace embeddings, and Tavily (web search fallback).
 
 ## Features
 - **Adaptive Routing**: Distinguishes general conversational queries from HR policy inquiries.

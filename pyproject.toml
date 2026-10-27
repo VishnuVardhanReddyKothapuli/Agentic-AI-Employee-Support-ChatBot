@@ -1,7 +1,7 @@
 [project]
-name = "agentic-chatbot"
+name = "hr-policy-copilot"
 version = "0.1.0"
-description = "Add your description here"
+description = "Agentic HR Policy Copilot powered by LangGraph, FastAPI, Groq, Pinecone, and Tavily"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = []

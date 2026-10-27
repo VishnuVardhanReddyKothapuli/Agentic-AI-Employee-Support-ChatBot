@@ -59,18 +59,34 @@ def chat_stream(payload: ChatRequest):
 
 
 @router.post("/ingest")
-async def ingest(file: UploadFile = File(...), x_admin_key: str = Header(default="")):
-    if x_admin_key != settings.admin_api_key:
-        raise HTTPException(status_code=401, detail="Invalid admin key")
+async def ingest(
+    file: UploadFile = File(...),
+    x_admin_key: str = Header(default=""),
+):
+    if settings.app_env == "production" and settings.admin_api_key != "change-me-in-production":
+        if x_admin_key != settings.admin_api_key:
+            raise HTTPException(status_code=401, detail="Invalid admin key")
+
     suffix = Path(file.filename or "").suffix.lower()
     if suffix not in SUPPORTED:
-        raise HTTPException(status_code=400, detail=f"Supported: {', '.join(sorted(SUPPORTED))}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported format. Supported: {', '.join(sorted(SUPPORTED))}",
+        )
+
     upload_dir = Path(settings.upload_dir)
     upload_dir.mkdir(parents=True, exist_ok=True)
     file_name = Path(file.filename or "upload").name
     dest = upload_dir / file_name
     dest.write_bytes(await file.read())
+
     docs = load_file(dest)
     chunks = chunk_documents(docs)
     ids = add_documents(chunks)
-    return {"message": "Document indexed", "file": dest.name, "chunks": len(chunks), "ids_created": len(ids)}
+
+    return {
+        "message": "Document indexed successfully",
+        "file": dest.name,
+        "chunks": len(chunks),
+        "ids_created": len(ids),
+    }

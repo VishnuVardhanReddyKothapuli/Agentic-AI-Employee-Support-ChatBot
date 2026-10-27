@@ -6,7 +6,7 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
-    app_name: str = "Agentic HR-Emp Bot"
+    app_name: str = "HR Policy Copilot"
     app_env: str = "development"
     groq_api_key: str = ""
     tavily_api_key: str = ""

@@ -7,14 +7,19 @@
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f9; color: #1f2937; height: 100vh; display: flex; flex-direction: column; }
-    header { background: #1e3a8a; color: #fff; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    header { background: #1e3a8a; color: #fff; padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .header-left { display: flex; align-items: center; gap: 12px; }
     header h1 { font-size: 1.15rem; font-weight: 600; }
+    .header-right { display: flex; align-items: center; gap: 12px; }
+    .btn-upload { background: #3b82f6; color: white; border: none; border-radius: 6px; padding: 6px 14px; font-size: 0.85rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: background 0.15s; }
+    .btn-upload:hover { background: #2563eb; }
     .status-badge { font-size: 0.8rem; background: #10b981; color: white; padding: 3px 10px; border-radius: 12px; }
     main { flex: 1; max-width: 900px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; padding: 16px; overflow: hidden; }
     #chat-window { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding: 8px 4px; }
     .msg { display: flex; flex-direction: column; max-width: 80%; padding: 12px 16px; border-radius: 12px; font-size: 0.95rem; line-height: 1.5; }
     .msg.user { align-self: flex-end; background: #2563eb; color: #fff; border-bottom-right-radius: 2px; }
     .msg.bot { align-self: flex-start; background: #ffffff; color: #1f2937; border: 1px solid #e5e7eb; border-bottom-left-radius: 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    .msg.system-notice { align-self: center; background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; border-radius: 8px; font-size: 0.85rem; padding: 8px 14px; text-align: center; }
     .meta { font-size: 0.75rem; color: #6b7280; margin-top: 6px; }
     .trace { margin-top: 8px; font-size: 0.75rem; background: #f3f4f6; padding: 6px 10px; border-radius: 6px; color: #4b5563; font-family: monospace; }
     .trace-status { font-size: 0.8rem; color: #6b7280; font-style: italic; margin-bottom: 4px; }
@@ -25,17 +30,46 @@
     input[type="text"]:focus { border-color: #2563eb; }
     button { background: #2563eb; color: white; border: none; border-radius: 8px; padding: 0 20px; font-weight: 500; cursor: pointer; font-size: 0.95rem; }
     button:disabled { background: #9ca3af; cursor: not-allowed; }
+
+    /* Modal Styles */
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; justify-content: center; align-items: center; z-index: 100; backdrop-filter: blur(2px); }
+    .modal-backdrop.active { display: flex; }
+    .modal-card { background: white; width: 90%; max-width: 500px; border-radius: 12px; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); display: flex; flex-direction: column; gap: 16px; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; }
+    .modal-header h2 { font-size: 1.15rem; color: #111827; }
+    .btn-close { background: transparent; border: none; font-size: 1.4rem; color: #9ca3af; cursor: pointer; padding: 0 4px; line-height: 1; }
+    .btn-close:hover { color: #111827; }
+    .dropzone { border: 2px dashed #cbd5e1; border-radius: 8px; padding: 32px 16px; text-align: center; cursor: pointer; transition: all 0.2s; background: #f8fafc; }
+    .dropzone.dragover { border-color: #2563eb; background: #eff6ff; }
+    .dropzone p { font-size: 0.9rem; color: #64748b; margin-top: 6px; }
+    .dropzone .hint { font-size: 0.75rem; color: #94a3b8; margin-top: 4px; }
+    .file-preview { display: none; align-items: center; justify-content: space-between; background: #f1f5f9; padding: 10px 14px; border-radius: 6px; font-size: 0.85rem; color: #334155; }
+    .file-preview span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 340px; }
+    .btn-remove-file { background: transparent; border: none; color: #ef4444; cursor: pointer; font-size: 0.85rem; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+    .btn-secondary { background: #f1f5f9; color: #475569; border: none; border-radius: 6px; padding: 8px 16px; font-size: 0.9rem; cursor: pointer; }
+    .btn-secondary:hover { background: #e2e8f0; }
+    .upload-status { font-size: 0.85rem; min-height: 20px; color: #2563eb; text-align: center; font-weight: 500; }
   </style>
 </head>
 <body>
   <header>
-    <h1>{{ app_name }}</h1>
-    <span class="status-badge" id="health-status">Online</span>
+    <div class="header-left">
+      <h1>{{ app_name }}</h1>
+    </div>
+    <div class="header-right">
+      <button class="btn-upload" id="open-upload-btn" title="Upload new policy documents into knowledge base">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+        Upload Policy
+      </button>
+      <span class="status-badge" id="health-status">Online</span>
+    </div>
   </header>
+
   <main>
     <div id="chat-window">
       <div class="msg bot">
-        <div>Hello! I am your HR and employee support assistant. Ask me anything about policies, leaves, benefits, conduct, or general HR guidelines.</div>
+        <div>Hello! I am your HR and employee support assistant. Ask me anything about policies, leaves, benefits, conduct, or general HR guidelines. You can also upload new policy documents using the button above.</div>
       </div>
     </div>
     <form id="chat-form">
@@ -43,12 +77,162 @@
       <button type="submit" id="send-btn">Send</button>
     </form>
   </main>
+
+  <!-- Upload Policy Modal -->
+  <div class="modal-backdrop" id="upload-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>Upload HR Policy Document</h2>
+        <button class="btn-close" id="close-modal-btn">&times;</button>
+      </div>
+
+      <div class="dropzone" id="dropzone">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="margin: 0 auto; display: block;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="12" y2="12"></line><line x1="15" y1="15" x2="12" y2="12"></line></svg>
+        <p><strong>Click to browse</strong> or drag and drop a policy file</p>
+        <div class="hint">Supported formats: PDF, DOCX, TXT, MD</div>
+        <input type="file" id="file-input" accept=".pdf,.docx,.txt,.md" style="display: none;" />
+      </div>
+
+      <div class="file-preview" id="file-preview">
+        <span id="file-name">filename.pdf</span>
+        <button type="button" class="btn-remove-file" id="remove-file-btn">Remove</button>
+      </div>
+
+      <div class="upload-status" id="upload-status"></div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-secondary" id="cancel-upload-btn">Cancel</button>
+        <button type="button" class="btn-upload" id="submit-upload-btn" disabled>Upload & Index</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const chatWindow = document.getElementById('chat-window');
     const form = document.getElementById('chat-form');
     const input = document.getElementById('question');
     const sendBtn = document.getElementById('send-btn');
 
+    // Modal elements
+    const openUploadBtn = document.getElementById('open-upload-btn');
+    const closeModalBtn = document.getElementById('close-modal-btn');
+    const cancelUploadBtn = document.getElementById('cancel-upload-btn');
+    const uploadModal = document.getElementById('upload-modal');
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('file-input');
+    const filePreview = document.getElementById('file-preview');
+    const fileNameSpan = document.getElementById('file-name');
+    const removeFileBtn = document.getElementById('remove-file-btn');
+    const submitUploadBtn = document.getElementById('submit-upload-btn');
+    const uploadStatus = document.getElementById('upload-status');
+
+    let selectedFile = null;
+
+    // Open/Close Modal
+    function openModal() {
+      uploadModal.classList.add('active');
+      resetUploadState();
+    }
+    function closeModal() {
+      uploadModal.classList.remove('active');
+      resetUploadState();
+    }
+
+    openUploadBtn.addEventListener('click', openModal);
+    closeModalBtn.addEventListener('click', closeModal);
+    cancelUploadBtn.addEventListener('click', closeModal);
+    uploadModal.addEventListener('click', (e) => {
+      if (e.target === uploadModal) closeModal();
+    });
+
+    function resetUploadState() {
+      selectedFile = null;
+      fileInput.value = '';
+      dropzone.style.display = 'block';
+      filePreview.style.display = 'none';
+      submitUploadBtn.disabled = true;
+      submitUploadBtn.textContent = 'Upload & Index';
+      uploadStatus.textContent = '';
+    }
+
+    function selectFile(file) {
+      if (!file) return;
+      selectedFile = file;
+      fileNameSpan.textContent = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+      dropzone.style.display = 'none';
+      filePreview.style.display = 'flex';
+      submitUploadBtn.disabled = false;
+      uploadStatus.textContent = '';
+    }
+
+    dropzone.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (e) => selectFile(e.target.files[0]));
+
+    removeFileBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      resetUploadState();
+    });
+
+    // Drag & Drop handlers
+    dropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.classList.add('dragover');
+    });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        selectFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    // Submit Upload & Index
+    submitUploadBtn.addEventListener('click', async () => {
+      if (!selectedFile) return;
+
+      submitUploadBtn.disabled = true;
+      submitUploadBtn.textContent = 'Indexing...';
+      uploadStatus.style.color = '#2563eb';
+      uploadStatus.textContent = 'Chunking and indexing into Pinecone vector store...';
+
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      try {
+        const res = await fetch('/api/ingest', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          uploadStatus.style.color = '#10b981';
+          uploadStatus.textContent = `Success! Indexed ${data.chunks} chunks.`;
+
+          // Add a notification into the chat stream
+          const notice = document.createElement('div');
+          notice.className = 'msg system-notice';
+          notice.textContent = `New Policy Indexed: "${data.file}" (${data.chunks} chunks created). You can now ask questions about this document.`;
+          chatWindow.appendChild(notice);
+          chatWindow.scrollTop = chatWindow.scrollHeight;
+
+          setTimeout(() => closeModal(), 1800);
+        } else {
+          uploadStatus.style.color = '#ef4444';
+          uploadStatus.textContent = data.detail || 'Upload failed.';
+          submitUploadBtn.disabled = false;
+          submitUploadBtn.textContent = 'Upload & Index';
+        }
+      } catch (err) {
+        uploadStatus.style.color = '#ef4444';
+        uploadStatus.textContent = 'Network error: ' + err.message;
+        submitUploadBtn.disabled = false;
+        submitUploadBtn.textContent = 'Upload & Index';
+      }
+    });
+
+    // Chat Message Rendering
     function appendUserMessage(text) {
       const msg = document.createElement('div');
       msg.className = 'msg user';
@@ -70,7 +254,6 @@
       input.disabled = true;
       sendBtn.disabled = true;
 
-      // Create streaming bot message placeholder
       const botMsg = document.createElement('div');
       botMsg.className = 'msg bot';
 
@@ -100,7 +283,6 @@
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
-        let traces = [];
 
         while (true) {
           const { done, value } = await reader.read();
@@ -108,7 +290,7 @@
 
           buffer += decoder.decode(value, { stream: true });
           const lines = buffer.split('\n\n');
-          buffer = lines.pop(); // keep remainder
+          buffer = lines.pop();
 
           for (const line of lines) {
             const trimmed = line.trim();
@@ -118,18 +300,14 @@
               const event = JSON.parse(trimmed.slice(5).trim());
 
               if (event.type === 'trace') {
-                traces.push(event.message);
                 statusDiv.textContent = event.message;
               } else if (event.type === 'token') {
-                if (statusDiv.parentNode) {
-                  statusDiv.remove(); // remove status indicator once tokens begin streaming
-                }
+                if (statusDiv.parentNode) statusDiv.remove();
                 contentDiv.textContent += event.content;
                 chatWindow.scrollTop = chatWindow.scrollHeight;
               } else if (event.type === 'done') {
                 if (statusDiv.parentNode) statusDiv.remove();
 
-                // Append metadata footer
                 if (event.source_used) {
                   const m = document.createElement('div');
                   m.className = 'meta';
