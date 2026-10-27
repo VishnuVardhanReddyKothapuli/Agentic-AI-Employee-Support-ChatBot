@@ -1,13 +1,17 @@
-# Python-generated files
+# Python
 __pycache__/
 *.py[oc]
 build/
 dist/
 wheels/
 *.egg-info
+*.egg
 
+# Environment
+.env
+.venv/
 
-.env 
-
-# Virtual environments
-.venv
+# App local artifacts
+data/*.db
+uploads/*
+!uploads/.gitkeep

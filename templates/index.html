@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ app_name }}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f6f9; color: #1f2937; height: 100vh; display: flex; flex-direction: column; }
+    header { background: #1e3a8a; color: #fff; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    header h1 { font-size: 1.15rem; font-weight: 600; }
+    .status-badge { font-size: 0.8rem; background: #10b981; color: white; padding: 3px 10px; border-radius: 12px; }
+    main { flex: 1; max-width: 900px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; padding: 16px; overflow: hidden; }
+    #chat-window { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding: 8px 4px; }
+    .msg { display: flex; flex-direction: column; max-width: 80%; padding: 12px 16px; border-radius: 12px; font-size: 0.95rem; line-height: 1.5; }
+    .msg.user { align-self: flex-end; background: #2563eb; color: #fff; border-bottom-right-radius: 2px; }
+    .msg.bot { align-self: flex-start; background: #ffffff; color: #1f2937; border: 1px solid #e5e7eb; border-bottom-left-radius: 2px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    .meta { font-size: 0.75rem; color: #6b7280; margin-top: 6px; }
+    .trace { margin-top: 8px; font-size: 0.75rem; background: #f3f4f6; padding: 6px 10px; border-radius: 6px; color: #4b5563; font-family: monospace; }
+    .trace-status { font-size: 0.8rem; color: #6b7280; font-style: italic; margin-bottom: 4px; }
+    .citations { margin-top: 6px; font-size: 0.8rem; color: #1e40af; }
+    .citations span { display: inline-block; background: #dbeafe; padding: 2px 6px; border-radius: 4px; margin-right: 4px; margin-top: 2px; }
+    form { display: flex; gap: 8px; margin-top: 12px; }
+    input[type="text"] { flex: 1; padding: 12px 16px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 0.95rem; outline: none; }
+    input[type="text"]:focus { border-color: #2563eb; }
+    button { background: #2563eb; color: white; border: none; border-radius: 8px; padding: 0 20px; font-weight: 500; cursor: pointer; font-size: 0.95rem; }
+    button:disabled { background: #9ca3af; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>{{ app_name }}</h1>
+    <span class="status-badge" id="health-status">Online</span>
+  </header>
+  <main>
+    <div id="chat-window">
+      <div class="msg bot">
+        <div>Hello! I am your HR and employee support assistant. Ask me anything about policies, leaves, benefits, conduct, or general HR guidelines.</div>
+      </div>
+    </div>
+    <form id="chat-form">
+      <input type="text" id="question" placeholder="Ask an HR policy question..." autocomplete="off" required />
+      <button type="submit" id="send-btn">Send</button>
+    </form>
+  </main>
+  <script>
+    const chatWindow = document.getElementById('chat-window');
+    const form = document.getElementById('chat-form');
+    const input = document.getElementById('question');
+    const sendBtn = document.getElementById('send-btn');
+
+    function appendUserMessage(text) {
+      const msg = document.createElement('div');
+      msg.className = 'msg user';
+      const content = document.createElement('div');
+      content.style.whiteSpace = 'pre-wrap';
+      content.textContent = text;
+      msg.appendChild(content);
+      chatWindow.appendChild(msg);
+      chatWindow.scrollTop = chatWindow.scrollHeight;
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+
+      appendUserMessage(text);
+      input.value = '';
+      input.disabled = true;
+      sendBtn.disabled = true;
+
+      // Create streaming bot message placeholder
+      const botMsg = document.createElement('div');
+      botMsg.className = 'msg bot';
+
+      const statusDiv = document.createElement('div');
+      statusDiv.className = 'trace-status';
+      statusDiv.textContent = 'Processing request...';
+      botMsg.appendChild(statusDiv);
+
+      const contentDiv = document.createElement('div');
+      contentDiv.style.whiteSpace = 'pre-wrap';
+      botMsg.appendChild(contentDiv);
+
+      chatWindow.appendChild(botMsg);
+      chatWindow.scrollTop = chatWindow.scrollHeight;
+
+      try {
+        const response = await fetch('/api/chat/stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question: text })
+        });
+
+        if (!response.ok) {
+          throw new Error('HTTP ' + response.status);
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let traces = [];
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n\n');
+          buffer = lines.pop(); // keep remainder
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed.startsWith('data:')) continue;
+
+            try {
+              const event = JSON.parse(trimmed.slice(5).trim());
+
+              if (event.type === 'trace') {
+                traces.push(event.message);
+                statusDiv.textContent = event.message;
+              } else if (event.type === 'token') {
+                if (statusDiv.parentNode) {
+                  statusDiv.remove(); // remove status indicator once tokens begin streaming
+                }
+                contentDiv.textContent += event.content;
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+              } else if (event.type === 'done') {
+                if (statusDiv.parentNode) statusDiv.remove();
+
+                // Append metadata footer
+                if (event.source_used) {
+                  const m = document.createElement('div');
+                  m.className = 'meta';
+                  m.textContent = `Source: ${event.source_used}`;
+                  botMsg.appendChild(m);
+                }
+
+                if (event.citations && event.citations.length > 0) {
+                  const cites = document.createElement('div');
+                  cites.className = 'citations';
+                  event.citations.forEach(c => {
+                    const span = document.createElement('span');
+                    span.textContent = c.title || c.url || 'Citation';
+                    cites.appendChild(span);
+                  });
+                  botMsg.appendChild(cites);
+                }
+
+                if (event.trace && event.trace.length > 0) {
+                  const tr = document.createElement('div');
+                  tr.className = 'trace';
+                  tr.textContent = event.trace.join(' -> ');
+                  botMsg.appendChild(tr);
+                }
+              } else if (event.type === 'error') {
+                contentDiv.textContent = 'Error: ' + event.message;
+              }
+            } catch (err) {
+              console.error('SSE parse error:', err);
+            }
+          }
+        }
+      } catch (err) {
+        if (statusDiv.parentNode) statusDiv.remove();
+        contentDiv.textContent = 'Network error: ' + err.message;
+      } finally {
+        input.disabled = false;
+        sendBtn.disabled = false;
+        input.focus();
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+      }
+    });
+  </script>
+</body>
+</html>

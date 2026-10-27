@@ -1,4 +1,3 @@
-from pinecone.inference.models.embedding_list import OpenAPIEmbeddingsList
 import time
 from pinecone import Pinecone, ServerlessSpec
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -40,18 +39,13 @@ def get_embedding_dimension(model_name: str | None = None) -> int:
     )
 
 
-
 def get_embeddings():
     global _embeddings
     if _embeddings is None:
-        if not settings.openai_api_key:
-            raise RuntimeError("GROQ_API_KEY is missing")
         _embeddings = HuggingFaceEmbeddings(
-            model=settings.embedding_model,
-            api_key=settings.groq_api_key,
+            model_name=settings.embedding_model,
         )
     return _embeddings
-
 
 
 def ensure_index():
@@ -63,12 +57,10 @@ def ensure_index():
     pc = Pinecone(api_key=settings.pinecone_api_key)
 
     index_name = (
-        getattr(settings, "pinecone_index_name", None)
+        settings.pinecone_index_name
         or os.getenv("PINECONE_INDEX_NAME")
+        or "agentic-hr-emp-bot"
     )
-    if not index_name:
-        existing_indexes = pc.list_indexes().names()
-        index_name = existing_indexes[0] if existing_indexes else "agentic-hr-emp-bot"
 
     if pc.has_index(index_name):
         index_info = pc.describe_index(index_name)
@@ -97,7 +89,6 @@ def ensure_index():
     return pc.Index(index_name)
 
 
-
 def get_vectorstore():
     global _vectorstore
     if _vectorstore is None:
@@ -105,16 +96,13 @@ def get_vectorstore():
         _vectorstore = PineconeVectorStore(
             index=index,
             embedding=get_embeddings(),
-            namespace=settings.pinecone_namespace,
+            namespace=settings.pinecone_namespace or None,
         )
     return _vectorstore
 
 
-
 def get_retriever():
     return get_vectorstore().as_retriever(search_kwargs={"k": settings.top_k})
-
-
 
 
 def add_documents(chunks):

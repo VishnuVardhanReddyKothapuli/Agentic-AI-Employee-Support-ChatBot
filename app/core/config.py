@@ -1,26 +1,28 @@
-from pinecone.inference.models import embedding_list
-import pinecone
-from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
-from pathlib import Path 
+from pathlib import Path
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 
+
 class Settings(BaseSettings):
-    app_name: str = 'Agentic HR-Emp bot'
-    app_env: str = 'development'
-    groq_api_key: str = ''
-    tavily_api_key: str = ''
-    pinecone_api_key: str = ''
-    embedding_model: str = 'sentence-transformers/all-MiniLM-L6-v2'
-    groq_model: str = 'openai/gpt-oss-120b'
+    app_name: str = "Agentic HR-Emp Bot"
+    app_env: str = "development"
+    groq_api_key: str = ""
+    tavily_api_key: str = ""
+    pinecone_api_key: str = ""
+    pinecone_index_name: str = "agentic-hr-emp-bot"
+    pinecone_namespace: str = ""
+    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    groq_model: str = "openai/gpt-oss-120b"
     top_k: int = 4
-    max_retires: int = 1
-    admin_api_key: str = 'change-me-in-production'
-    audit_db_path: str = str(BASE_DIR / 'data' / 'audit.db')
-    upload_dir: str = str(BASE_DIR / 'uploads')
-    sample_kb_dir: str = str(BASE_DIR / 'data' / 'sample_kb')
-    model_config = SettingsConfigDict(env_file=str(BASE_DIR / '.env'), extra='ignore')
+    max_retries: int = 1
+    admin_api_key: str = "change-me-in-production"
+    audit_db_path: str = str(BASE_DIR / "data" / "audit.db")
+    upload_dir: str = str(BASE_DIR / "uploads")
+    sample_kb_dir: str = str(BASE_DIR / "data" / "hr-data")
+
+    model_config = SettingsConfigDict(env_file=str(BASE_DIR / ".env"), extra="ignore")
 
 
 @lru_cache
